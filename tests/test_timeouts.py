@@ -4,6 +4,7 @@ from unittest.mock import patch
 from rq import Queue, SimpleWorker
 from rq.registry import FailedJobRegistry, FinishedJobRegistry
 from rq.timeouts import (
+    JobTimeoutException,
     TimerDeathPenalty,
     UnixSignalDeathPenalty,
     get_default_death_penalty_class,
@@ -55,6 +56,16 @@ class TestTimeouts(RQTestCase):
         w.work(burst=True)
         job.refresh()
         self.assertIn(job, finished_job_registry)
+
+    def test_timer_death_penalty_leaves_exception_class_unchanged(self):
+        """Constructing a TimerDeathPenalty does not change the exception class it raises."""
+        first = TimerDeathPenalty(1)
+        second = TimerDeathPenalty(2)
+
+        self.assertEqual(str(JobTimeoutException('custom message')), 'custom message')
+        self.assertTrue(issubclass(first._exception, JobTimeoutException))
+        self.assertEqual(str(first._exception()), 'Task exceeded maximum timeout value (1 seconds)')
+        self.assertEqual(str(second._exception()), 'Task exceeded maximum timeout value (2 seconds)')
 
     @patch('rq.timeouts.signal')
     def test_get_default_death_penalty_class(self, mock_signal):
