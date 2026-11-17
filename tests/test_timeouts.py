@@ -72,6 +72,14 @@ class TestTimeouts(RQTestCase):
         unpickled = pickle.loads(pickle.dumps(context.exception))
         self.assertEqual(str(unpickled), 'Task exceeded maximum timeout value (1 seconds)')
 
+        # An enclosing death penalty of the same class keeps the message of the timer that fired
+        with self.assertRaises(JobTimeoutException) as context:
+            with TimerDeathPenalty(30):
+                with TimerDeathPenalty(1):
+                    thread_friendly_sleep_func(3)
+
+        self.assertEqual(str(context.exception), 'Task exceeded maximum timeout value (1 seconds)')
+
     @patch('rq.timeouts.signal')
     def test_get_default_death_penalty_class(self, mock_signal):
         """get_default_death_penalty_class() returns the correct class."""

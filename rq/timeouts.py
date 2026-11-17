@@ -87,7 +87,7 @@ class TimerDeathPenalty(BaseDeathPenalty):
         suppress = super().__exit__(type, value, traceback)
         # PyThreadState_SetAsyncExc can only take a class, so the exception it raised carries no
         # message; it gets one here instead of through a patch of the class for the whole process
-        if isinstance(value, self._exception):
+        if isinstance(value, self._exception) and not value.args:
             value.args = (f'Task exceeded maximum timeout value ({self._timeout} seconds)',)
         return suppress
 
