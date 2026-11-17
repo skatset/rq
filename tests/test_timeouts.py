@@ -1,3 +1,4 @@
+import pickle
 import time
 from unittest.mock import patch
 
@@ -58,14 +59,18 @@ class TestTimeouts(RQTestCase):
         self.assertIn(job, finished_job_registry)
 
     def test_timer_death_penalty_leaves_exception_class_unchanged(self):
-        """Constructing a TimerDeathPenalty does not change the exception class it raises."""
-        first = TimerDeathPenalty(1)
-        second = TimerDeathPenalty(2)
-
+        """TimerDeathPenalty raises the exception class it was given, without modifying it."""
+        TimerDeathPenalty(2)
         self.assertEqual(str(JobTimeoutException('custom message')), 'custom message')
-        self.assertTrue(issubclass(first._exception, JobTimeoutException))
-        self.assertEqual(str(first._exception()), 'Task exceeded maximum timeout value (1 seconds)')
-        self.assertEqual(str(second._exception()), 'Task exceeded maximum timeout value (2 seconds)')
+
+        with self.assertRaises(JobTimeoutException) as context:
+            with TimerDeathPenalty(1):
+                thread_friendly_sleep_func(3)
+
+        self.assertIs(type(context.exception), JobTimeoutException)
+        self.assertEqual(str(context.exception), 'Task exceeded maximum timeout value (1 seconds)')
+        unpickled = pickle.loads(pickle.dumps(context.exception))
+        self.assertEqual(str(unpickled), 'Task exceeded maximum timeout value (1 seconds)')
 
     @patch('rq.timeouts.signal')
     def test_get_default_death_penalty_class(self, mock_signal):
